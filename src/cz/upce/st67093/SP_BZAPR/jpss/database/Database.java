@@ -42,26 +42,23 @@ public class Database {
     }
 
     @SuppressWarnings("unchecked")
-    public void decryptDatabase(String password) {
+    public boolean decryptDatabase(String password) {
         try {
             Cipher cipher = getCipherFromPassword(password, Cipher.DECRYPT_MODE);
             records = (ArrayList<Record>) sealedRecords.getObject(cipher);
             this.password = password;
             locked = false;
-            System.out.println("Database is unlocked");
-            return;
+            return true;
         }
-        catch (InvalidKeyException | BadPaddingException e) {
-            System.out.println("Wrong password");
-        }
+        catch (InvalidKeyException | BadPaddingException ignored) {}
         catch (Exception e) {
             e.printStackTrace();
         }
         locked = true;
+        return false;
     }
 
     public void readFile(String filePath) throws BadArgumentException, WrongFileFormatException {
-        System.out.println("Reading file: " + filePath);
         databaseFile = new File(filePath);
 
         FileInputStream in = null;
@@ -92,7 +89,8 @@ public class Database {
 
     public void writeFile() {
         if (password.isEmpty()) {
-            System.out.println("Cannot encrypt database, password is null");
+            System.out.println("Cannot encrypt database, password is null.");
+            System.out.println("File was not saved");
             return;
         }
 
@@ -108,7 +106,11 @@ public class Database {
             objOut.writeObject(encryptedRecords);
             objOut.close();
             out.close();
-        } catch (Exception e) {
+        }
+        catch (IOException e) {
+            System.out.println("Failed to save the file");
+        }
+        catch (Exception e) {
             e.printStackTrace();
         }
     }

@@ -40,8 +40,12 @@ public class Executor {
 
             String password = parsedArgs.getOptionValue("p");
             if (password != null) {
-                System.out.println("Trying password");
-                database.decryptDatabase(password);
+                if (database.decryptDatabase(password)) {
+                    System.out.println("Database is unlocked");
+                }
+                else {
+                    System.out.println("Given password is wrong");
+                }
             }
         }
         else {
@@ -114,10 +118,10 @@ public class Executor {
             password = sc.nextLine();
         }
 
-        System.out.print("Account: ");
+        System.out.print("Account(optional): ");
         accountName = sc.nextLine();
 
-        System.out.print("Description: ");
+        System.out.print("Description(optional): ");
         description = sc.nextLine();
 
         database.addRecord(new Record(title, password, accountName, description));
@@ -232,9 +236,19 @@ public class Executor {
             return;
         }
         Scanner sc = new Scanner(System.in);
-        System.out.print("Enter password for database: ");
-        String password = sc.nextLine();
-        database.decryptDatabase(password);
+        //give 3 tries to user
+        for (int i = 0; i < 3; i++) {
+            System.out.print("Enter password for database: ");
+            String password = sc.nextLine();
+            if (database.decryptDatabase(password)) {
+                System.out.println("Database is unlocked");
+                return;
+            }
+            else if (i != 2) {
+                System.out.println("Wrong password. Try again");
+            }
+        }
+        System.out.println("Too many incorrect password attempts");
     }
 
     private void infoCommand() {
