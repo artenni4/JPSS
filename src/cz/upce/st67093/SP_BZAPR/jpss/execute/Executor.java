@@ -9,9 +9,9 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 /**
- * Class for interaction with ApplicationState.
+ * Class for interaction with Database.
  * Main Application class should delegate all
- * command execution and changing app state to
+ * command execution and changing database to
  * this class
  */
 public class Executor {
