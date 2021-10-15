@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="JPSS:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/JPSS_jar</output-path>
+    <root id="archive" name="JPSS.jar">
+      <element id="module-output" name="JPSS" />
+    </root>
+  </artifact>
+</component>
