@@ -9,6 +9,8 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -17,36 +19,47 @@ public class Database {
     private ArrayList<Record> records;
     private SealedObject sealedRecords;
     private File databaseFile;
-    private String password;
+    private SecretKey secretKey;
     private boolean locked;
 
+    private static final String encryptionMethod = "AES/CBC/PKCS5Padding";
+    private static final String encryptionAlgorithm = "AES";
+    private static final String secretKeyGenerationMethod = "PBKDF2WithHmacSHA256";
+    // salt for generating secret key from password string
+    private static final byte[] salt = {
+            (byte)0xc7, (byte)0x73, (byte)0x21, (byte)0x8c,
+            (byte)0x7e, (byte)0xc8, (byte)0xee, (byte)0x99,
+            (byte)0x47, (byte)0xa3, (byte)0x21, (byte)0x8c,
+            (byte)0x0e, (byte)0xcc, (byte)0x4e, (byte)0xd3
+    };
+
     public Database() {
-        password = "";
+        secretKey = null;
         records = new ArrayList<>();
         locked = true;
     }
 
-    private static Cipher getCipherFromPassword(String password, int encryptMode) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        byte[] salt = {
-                (byte)0xc7, (byte)0x73, (byte)0x21, (byte)0x8c,
-                (byte)0x7e, (byte)0xc8, (byte)0xee, (byte)0x99,
-                (byte)0x47, (byte)0xa3, (byte)0x21, (byte)0x8c,
-                (byte)0x0e, (byte)0xcc, (byte)0x4e, (byte)0xd3
-        };
-        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 10000, 256);
-        SecretKey tmpKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec);
-        SecretKey key = new SecretKeySpec(tmpKey.getEncoded(), "AES");
-        cipher.init(encryptMode, key, new IvParameterSpec(salt));
-        return cipher;
+    private static SecretKey getKeyFromPassword(String password) {
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), Database.salt, 10000, 256);
+
+        try {
+            SecretKey tmpKey = SecretKeyFactory.getInstance(Database.secretKeyGenerationMethod).generateSecret(spec);
+            return new SecretKeySpec(tmpKey.getEncoded(), Database.encryptionAlgorithm);
+        }
+        catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")
     public boolean decryptDatabase(String password) {
         try {
-            Cipher cipher = getCipherFromPassword(password, Cipher.DECRYPT_MODE);
+            Cipher cipher = Cipher.getInstance(Database.encryptionMethod);
+            SecretKey key = getKeyFromPassword(password);
+            cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(Database.salt));
             records = (ArrayList<Record>) sealedRecords.getObject(cipher);
-            this.password = password;
+            secretKey = key;
             locked = false;
             return true;
         }
@@ -88,19 +101,14 @@ public class Database {
     }
 
     public void writeFile() {
-        if (password.isEmpty()) {
-            System.out.println("Cannot encrypt database, password is null.");
-            System.out.println("File was not saved");
-            return;
-        }
-
         try {
             FileOutputStream out = new FileOutputStream(databaseFile);
             ObjectOutputStream objOut = new ObjectOutputStream(out);
             objOut.writeObject(info);
 
             // Encrypt records
-            Cipher cipher = getCipherFromPassword(password, Cipher.ENCRYPT_MODE);
+            Cipher cipher = Cipher.getInstance(Database.encryptionMethod);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(Database.salt));
             SealedObject encryptedRecords = new SealedObject(records, cipher);
 
             objOut.writeObject(encryptedRecords);
@@ -112,6 +120,7 @@ public class Database {
         }
         catch (Exception e) {
             e.printStackTrace();
+            System.out.println("Failed to save the file");
         }
     }
 
@@ -128,7 +137,8 @@ public class Database {
 
         Scanner sc = new Scanner(System.in);
         System.out.print("Enter password for database: ");
-        this.password = sc.nextLine();
+        String password = sc.nextLine();
+        secretKey = getKeyFromPassword(password);
         System.out.println("Enter some optional information for database");
         System.out.print("Owner of the database(enter to skip): ");
         String owner = sc.nextLine();
