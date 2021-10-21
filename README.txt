@@ -1,5 +1,7 @@
 Java Password Storing System (JPSS) is a CLI program for storing passwords.
 
+TESTED ONLY ON OpenJDK 17 
+
 Steps to MVP:
 1. Parsing command line arguments
  * Parse command arguments with spaces (open "my file.txt" should be command open with one argument my file.txt)
